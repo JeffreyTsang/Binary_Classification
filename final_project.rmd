@@ -1,0 +1,438 @@
+---
+title: "Final Project"
+#output:
+ # pdf_document: default
+  #html_notebook: default
+output: github_document
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r}
+divorce_data <- read.csv("divorce.csv", header=TRUE)
+head(divorce_data)
+# na.exclude(divorce_data)
+```
+```{r}
+table(divorce_data$Class)
+
+tdat =  data.frame((divorce_data))
+
+
+# median for each column
+(sapply(tdat, median))
+
+# mean for each column
+(sapply(tdat, mean))
+
+# https://www.tutorialspoint.com/r/r_mean_median_mode.htm
+# mode function adopted from this site
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+sapply(tdat, getmode)
+
+#median counts
+table(round(sapply(tdat, getmode)))
+
+```
+
+
+```{r}
+#sum of answers for each column
+(sapply(tdat, sum))
+
+# variance for each column
+(sapply(tdat, var))
+
+# overall variacne
+mean(sapply(tdat, var))
+
+```
+
+
+
+```{r}
+
+
+library(caret)
+library(leaps)
+library("InformationValue")
+
+
+set.seed(1)
+
+trainIndex  = createDataPartition(divorce_data$Class, p = .7, list = FALSE, times = 1)
+
+divorce_train =  divorce_data[ trainIndex,]
+divorce_test  =  divorce_data[-trainIndex,]
+```
+
+```{r}
+
+
+
+sapply(divorce_data, sum)
+
+```
+
+```{r}
+library(cluster)
+library(fpc)
+
+cdat <- divorce_data[, -55] # without known classification 
+
+# Kmeans cluster analysis
+clus <- kmeans(cdat, centers=2)
+```
+
+
+```{r}
+#data looks linearly separable
+plotcluster(cdat, clus$cluster)
+```
+
+
+```{r}
+#logistic
+
+# seed 1 log_reg all predictors
+set.seed(1)
+
+trainIndex  = createDataPartition(divorce_data$Class, p = .7, list = FALSE, times = 1)
+
+divorce_train =  divorce_data[ trainIndex,]
+divorce_test  =  divorce_data[-trainIndex,]
+
+
+log_reg = glm(Class ~., data = divorce_train)
+summary(log_reg)
+
+p_logreg = predict(log_reg, newdata = divorce_test, type = "response" )
+
+
+
+terr = misClassError(divorce_test$Class, p_logreg, threshold = .5)
+#test error
+terr
+
+```
+
+
+```{r}
+# all_predictors
+log_te = c()
+for( i in 1:1000){
+set.seed(i)
+
+trainIndex  = createDataPartition(divorce_data$Class, p = .7, list = FALSE, times = 1)
+
+divorce_train =  divorce_data[ trainIndex,]
+divorce_test  =  divorce_data[-trainIndex,]
+
+
+log_reg = glm(Class ~., data = divorce_train)
+
+
+p_logreg = predict(log_reg, newdata = divorce_test, type = "response" )
+
+
+
+terr = misClassError(divorce_test$Class, p_logreg, threshold = .5)
+log_te = c(log_te,terr )
+
+}
+#test error
+mean(log_te)
+```
+```{r}
+# Test hypothesis- predictors with variance 1 std above the mean
+set.seed(1)
+
+trainIndex  = createDataPartition(divorce_data$Class, p = .7, list = FALSE, times = 1)
+
+divorce_train =  divorce_data[ trainIndex,]
+divorce_test  =  divorce_data[-trainIndex,]
+
+
+log_reg = glm(Class ~ Atr37 + Atr39 + Atr41 + Atr33 + Atr38 + Atr40 + Atr36 + Atr35 , data = divorce_train)
+
+p_logreg = predict(log_reg, newdata = divorce_test, type = "response" )
+
+
+
+terr = misClassError(divorce_test$Class, p_logreg, threshold = .5)
+#test error
+terr
+```
+
+
+```{r}
+# Test hypothesis- predictors with variance 1 std above the mean
+log_te = c()
+for( i in 1:1000){
+set.seed(i)
+
+trainIndex  = createDataPartition(divorce_data$Class, p = .7, list = FALSE, times = 1)
+
+divorce_train =  divorce_data[ trainIndex,]
+divorce_test  =  divorce_data[-trainIndex,]
+
+
+log_reg = glm(Class ~ Atr37 + Atr39 + Atr41 + Atr33 + Atr38 + Atr40 + Atr36 + Atr35 , data = divorce_train)
+
+p_logreg = predict(log_reg, newdata = divorce_test, type = "response" )
+
+
+
+terr = misClassError(divorce_test$Class, p_logreg, threshold = .5)
+log_te = c(log_te,terr )
+
+}
+#test Error
+mean(log_te)
+```
+
+
+
+
+```{r}
+#best subset
+models = regsubsets(as.factor(Class)~., data = divorce_data, nvmax = 9, really.big = T)
+res.sum =  summary(models)
+data.frame(
+  Adj.R2 = which.max(res.sum$adjr2),
+  CP = which.min(res.sum$cp),
+  BIC = which.min(res.sum$bic)
+)
+
+```
+
+
+```{r}
+#best subset
+log_te = c()
+for( i in 1:1000){
+set.seed(i)
+
+trainIndex  = createDataPartition(divorce_data$Class, p = .7, list = FALSE, times = 1)
+
+divorce_train =  divorce_data[ trainIndex,]
+divorce_test  =  divorce_data[-trainIndex,]
+
+
+log_reg = glm(Class ~ Atr6 + Atr17 + Atr18 + Atr24 + Atr25 + Atr26 + Atr40 + Atr49 + Atr52, data = divorce_train)
+
+p_logreg = predict(log_reg, newdata = divorce_test, type = "response" )
+
+
+
+
+terr = misClassError(divorce_test$Class, p_logreg, threshold = .5)
+log_te = c(log_te,terr )
+
+}
+#test Error
+mean(log_te)
+```
+```{r}
+set.seed(1)
+
+trainIndex  = createDataPartition(divorce_data$Class, p = .7, list = FALSE, times = 1)
+
+divorce_train =  divorce_data[ trainIndex,]
+divorce_test  =  divorce_data[-trainIndex,]
+
+
+log_reg = glm(Class ~ Atr6 + Atr17 + Atr18 + Atr24 + Atr25 + Atr26 + Atr40 + Atr49 + Atr52, data = divorce_train)
+
+p_logreg = predict(log_reg, newdata = divorce_test, type = "response" )
+
+
+
+
+terr = misClassError(divorce_test$Class, p_logreg, threshold = .5)
+log_te = c(log_te,terr )
+summary(log_reg)
+print (terr)
+```
+
+
+
+```{r}
+set.seed(1)
+library(tree)
+divorce_tree=tree(as.factor(Class)~.,divorce_train)
+summary(divorce_tree)
+```
+
+```{r}
+plot(divorce_tree)
+text(divorce_tree,pretty=0)
+```
+
+```{r}
+
+prediction=predict(divorce_tree,newdata=divorce_test,type="class")
+table(prediction,divorce_test$Class)
+
+
+mean(prediction==divorce_test$Class)
+mean(prediction!=divorce_test$Class)
+```
+
+```{r}
+# Pruning
+
+cv_divorce=cv.tree(divorce_tree,FUN=prune.misclass)
+cv_divorce
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+plot(cv_divorce$size ,cv_divorce$dev ,type="b")
+plot(cv_divorce$k ,cv_divorce$dev ,type="b")
+```
+
+
+```{r}
+prune_divorce=prune.misclass(divorce_tree,best=2)
+
+
+plot(prune_divorce)
+text(prune_divorce,pretty=0)
+```
+```{r}
+prediction=predict(prune_divorce,newdata=divorce_test,type="class")
+table(prediction,divorce_test$Class)
+
+mean(prediction==divorce_test$Class)
+mean(prediction!=divorce_test$Class)
+```
+
+
+
+```{r}
+library(randomForest)
+
+# predictors> variance is high overfit
+set.seed(2)
+
+dim(divorce_data)
+
+
+# divorce_tree=tree(as.factor(Class)~.,divorce_train)
+bag_divorce=randomForest(as.factor(Class)~.,data=divorce_train,mtry=54,importance=TRUE)
+bag_divorce
+```
+
+```{r}
+prediction=predict(bag_divorce,newdata=divorce_test,type="class")
+table(prediction,divorce_test$Class)
+mean(prediction!=divorce_test$Class)
+
+```
+
+```{r}
+importance(bag_divorce)
+```
+
+
+```{r}
+varImpPlot(bag_divorce)
+```
+
+```{r}
+random_divorce=randomForest(as.factor(Class)~.,data=divorce_train,mtry=7,importance=TRUE)
+random_divorce
+
+```
+
+```{r}
+prediction=predict(random_divorce,newdata=divorce_test,type="class")
+table(prediction,divorce_test$Class)
+mean(prediction!=divorce_test$Class)
+```
+
+```{r}
+importance(random_divorce)
+```
+
+```{r}
+varImpPlot(random_divorce)
+```
+
+
+LDA
+```{r}
+# LDA
+
+library (MASS)
+fit.lda = lda(as.factor(Class) ~ ., data = divorce_train)
+
+pred.lda = predict(fit.lda, divorce_test)$x
+pred.lda[pred.lda  >= .5] = 1
+pred.lda[pred.lda < .5] = 0
+print('The test error for LDA is')
+mean(pred.lda !=divorce_test$Class)
+table(pred.lda,divorce_test$Class)
+
+```
+
+
+```{r}
+library(glmnet)
+X.train = as.matrix(scale(divorce_train[,1:54]))
+Y.train = as.matrix(as.factor(divorce_train$Class))
+
+X.test = as.matrix(scale(divorce_test[,1:54]))
+Y.test = as.matrix(as.factor(divorce_test$Class))
+
+
+```
+
+Lasso and Ridge
+```{r}
+# Lasso
+set.seed(1)
+lasso.fit = glmnet(x=X.train, y=Y.train, family = "binomial", alpha = 1)
+lasso.cv = cv.glmnet(x=X.train, y=Y.train,family = "binomial", alpha = 1, nfolds = 10)
+
+summary(lasso.cv)
+
+lasso.pred = predict(lasso.cv, newx = X.test, s=lasso.cv$lambda.min,type = 'response')
+
+coef(lasso.cv, lasso.cv$lambda.min)
+
+lasso.pred[lasso.pred  >= .5] = 1
+lasso.pred[lasso.pred < .5] = 0
+mean(divorce_test$Class==lasso.pred)
+mean(divorce_test$Class!=lasso.pred)
+table(lasso.pred,Y.test)
+```
+
+
+```{r}
+# Ridge
+ridge.fit = glmnet(x=X.train, y=Y.train, family = "binomial", alpha = 0)
+ridge.cv = cv.glmnet(x=X.train, y=Y.train,family = "binomial", alpha = 0, nfolds = 10)
+ridge.pred = predict(ridge.cv, newx = X.test, s=ridge.cv$lambda.min,type = 'response')
+coef(ridge.cv, ridge.cv$lambda.min)
+ridge.pred[ridge.pred  >= .5] = 1
+ridge.pred[ridge.pred < .5] = 0
+mean(divorce_test$Class==ridge.pred)
+mean(divorce_test$Class!=ridge.pred)
+table(ridge.pred,Y.test)
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
